@@ -1,0 +1,9 @@
+anthropic>=0.25.0
+openai>=1.0.0
+z3-solver>=4.12.0
+lxml>=4.9.0
+streamlit>=1.32.0
+flask>=3.0.0
+pytest>=8.0.0
+pyyaml>=6.0
+networkx>=3.0

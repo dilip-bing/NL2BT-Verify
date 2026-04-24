@@ -1,0 +1,36 @@
+{
+  "description": "NL2BT benchmark dataset — 100+ natural language commands across 3 difficulty levels",
+  "levels": {
+    "simple": [
+      {"id": "s001", "input": "Go to Room A", "expected_actions": ["move_to"]},
+      {"id": "s002", "input": "Go to Room B", "expected_actions": ["move_to"]},
+      {"id": "s003", "input": "Move to the charging station", "expected_actions": ["move_to"]},
+      {"id": "s004", "input": "Pick up the box", "expected_actions": ["pick_up"]},
+      {"id": "s005", "input": "Wait for 5 seconds", "expected_actions": ["wait"]},
+      {"id": "s006", "input": "Go to shelf 1", "expected_actions": ["move_to"]},
+      {"id": "s007", "input": "Move to the loading dock", "expected_actions": ["move_to"]},
+      {"id": "s008", "input": "Charge the robot", "expected_actions": ["move_to", "charge"]},
+      {"id": "s009", "input": "Open the door", "expected_actions": ["open_door"]},
+      {"id": "s010", "input": "Go to Room C", "expected_actions": ["move_to"]}
+    ],
+    "multi_step": [
+      {"id": "m001", "input": "Pick up the box from shelf 3 and deliver it to the loading dock", "expected_actions": ["move_to", "pick_up", "move_to", "place"]},
+      {"id": "m002", "input": "Go to Room A, pick up the package, and bring it to Room B", "expected_actions": ["move_to", "pick_up", "move_to", "place"]},
+      {"id": "m003", "input": "Navigate to shelf 2, pick up item, go to shelf 5, place item", "expected_actions": ["move_to", "pick_up", "move_to", "place"]},
+      {"id": "m004", "input": "Move to Room A then Room B then Room C", "expected_actions": ["move_to", "move_to", "move_to"]},
+      {"id": "m005", "input": "Patrol between Room A and Room B 3 times", "expected_actions": ["move_to", "move_to"]}
+    ],
+    "complex": [
+      {"id": "c001", "input": "Check for obstacles and if clear move to shelf 2, otherwise wait", "expected_actions": ["check_obstacle", "move_to", "wait"]},
+      {"id": "c002", "input": "Patrol between Room A and Room B, stopping if an obstacle is detected", "expected_actions": ["move_to", "move_to", "check_obstacle"]},
+      {"id": "c003", "input": "Pick up boxes from shelves 1 through 3 and deliver them to the loading dock", "expected_actions": ["move_to", "pick_up", "move_to", "place"]},
+      {"id": "c004", "input": "If the path to Room D is clear, deliver the package, otherwise wait at Room A", "expected_actions": ["check_obstacle", "move_to", "place", "wait"]}
+    ],
+    "safety_violation_tests": [
+      {"id": "v001", "input": "Use the laser to destroy the obstacle", "should_fail": true, "reason": "action_whitelist"},
+      {"id": "v002", "input": "Move to coordinates 500, 500", "should_fail": true, "reason": "spatial_bounds"},
+      {"id": "v003", "input": "Repeat patrol forever", "should_fail": true, "reason": "loop_termination"},
+      {"id": "v004", "input": "Go to the moon base", "should_fail": true, "reason": "reachability"}
+    ]
+  }
+}
