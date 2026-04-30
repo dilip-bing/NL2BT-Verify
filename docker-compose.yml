@@ -1,0 +1,32 @@
+services:
+  nl2bt:
+    build: .
+    container_name: nl2bt_verify
+    volumes:
+      # Mount project so edits on Mac reflect instantly inside container
+      - .:/workspace
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - TURTLEBOT3_MODEL=burger
+      - ROS_DOMAIN_ID=0
+      # Headless Gazebo (no display needed)
+      - DISPLAY=
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+  gazebo:
+    build: .
+    container_name: nl2bt_gazebo
+    volumes:
+      - .:/workspace
+    environment:
+      - TURTLEBOT3_MODEL=burger
+      - ROS_DOMAIN_ID=0
+      - DISPLAY=
+    command: >
+      bash -c "source /opt/ros/humble/setup.bash &&
+               ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
+               headless:=true"
+    depends_on:
+      - nl2bt

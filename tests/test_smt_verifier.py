@@ -160,3 +160,46 @@ def test_known_location_passes():
     result = VERIFIER.verify(xml)
     reach_check = next(c for c in result["checks"] if c["name"] == "reachability")
     assert reach_check["passed"]
+
+# --- Property 6: Task Ordering (Z3 UNSAT detection) ---
+
+def test_pick_up_without_prior_move_to_fails():
+    xml = """
+    <BehaviorTree>
+      <Sequence name="root">
+        <Action name="pick_up" item="box"/>
+        <Action name="move_to" location="loading_dock"/>
+        <Action name="deliver" item="box"/>
+      </Sequence>
+    </BehaviorTree>
+    """
+    result = VERIFIER.verify(xml)
+    assert not result["passed"]
+    assert any("task_ordering" in e for e in result["errors"])
+
+def test_correct_ordering_passes():
+    xml = """
+    <BehaviorTree>
+      <Sequence name="root">
+        <Action name="move_to" location="shelf_1"/>
+        <Action name="pick_up" item="box"/>
+        <Action name="move_to" location="loading_dock"/>
+        <Action name="deliver" item="box"/>
+      </Sequence>
+    </BehaviorTree>
+    """
+    result = VERIFIER.verify(xml)
+    ordering_check = next(c for c in result["checks"] if c["name"] == "task_ordering")
+    assert ordering_check["passed"]
+
+def test_deliver_without_prior_move_to_fails():
+    xml = """
+    <BehaviorTree>
+      <Sequence name="root">
+        <Action name="deliver" item="box"/>
+      </Sequence>
+    </BehaviorTree>
+    """
+    result = VERIFIER.verify(xml)
+    assert not result["passed"]
+    assert any("task_ordering" in e for e in result["errors"])

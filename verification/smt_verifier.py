@@ -4,7 +4,7 @@ Checks 5 safety properties on an XML Behavior Tree before execution.
 """
 import xml.etree.ElementTree as ET
 from typing import Optional
-from z3 import And, Bool, BoolVal, Int, Or, Solver, sat, unsat
+from z3 import And, Bool, BoolVal, Int, Or, Solver, sat, unsat, Implies
 
 VALID_NODE_TYPES = {"Sequence", "Fallback", "Action", "Condition", "Repeat", "BehaviorTree"}
 
@@ -50,6 +50,7 @@ class SMTVerifier:
             self._check_spatial_bounds,
             self._check_loop_termination,
             self._check_reachability,
+            self._check_task_ordering,
         ]:
             result = check_fn(root)
             checks.append(result)
@@ -225,3 +226,61 @@ class SMTVerifier:
             visited.add(node)
             queue.extend(graph.get(node, []))
         return visited
+
+    # ------------------------------------------------------------------
+    # Property 6: Task Dependency Ordering
+    # Z3 formally proves: in every Sequence, manipulation actions
+    # (pick_up, deliver, place) are always preceded by a move_to.
+    # Encodes position indices as Z3 integers and asserts the ordering
+    # constraint: pos(move_to) < pos(manipulation) must be satisfiable.
+    # If no valid ordering exists, Z3 returns UNSAT → property violated.
+    # ------------------------------------------------------------------
+    def _check_task_ordering(self, root: ET.Element) -> dict:
+        name = "task_ordering"
+        violations = []
+        MANIPULATION = {"pick_up", "deliver", "place"}
+
+        for seq in root.iter("Sequence"):
+            actions = list(seq)  # direct children only
+            action_names = [a.get("name", "") for a in actions if a.tag == "Action"]
+
+            manip_indices  = [i for i, n in enumerate(action_names) if n in MANIPULATION]
+            nav_indices    = [i for i, n in enumerate(action_names) if n == "move_to"]
+
+            if not manip_indices:
+                continue  # no manipulation in this sequence — OK
+
+            if not nav_indices:
+                violations.append(
+                    f"Sequence '{seq.get('name', 'unnamed')}' contains "
+                    f"{[action_names[i] for i in manip_indices]} with no preceding move_to"
+                )
+                continue
+
+            # Z3: for each manipulation action, prove there EXISTS a move_to
+            # with a strictly smaller position index.
+            solver = Solver()
+            for m_idx in manip_indices:
+                m_pos = Int(f"pos_manip_{m_idx}")
+                solver.add(m_pos == m_idx)
+
+                # At least one move_to must precede this manipulation
+                nav_precedes = Or(*[
+                    Int(f"pos_nav_{n_idx}") < m_pos
+                    for n_idx in nav_indices
+                ])
+                for n_idx in nav_indices:
+                    solver.add(Int(f"pos_nav_{n_idx}") == n_idx)
+
+                solver.add(nav_precedes)
+
+                if solver.check() == unsat:
+                    violations.append(
+                        f"Sequence '{seq.get('name', 'unnamed')}': "
+                        f"'{action_names[m_idx]}' at position {m_idx} has no "
+                        f"preceding move_to — ordering constraint UNSAT"
+                    )
+                solver.reset()
+
+        passed = len(violations) == 0
+        return {"name": name, "passed": passed, "detail": str(violations) if violations else "OK"}
