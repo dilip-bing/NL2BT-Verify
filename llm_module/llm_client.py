@@ -175,19 +175,35 @@ def _strip_fences(text: str) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _generate_gemini(prompt: str) -> Optional[str]:
-    import google.generativeai as genai
+    """Call Gemini via REST API directly — no SDK version dependency."""
+    import urllib.request
+    import json
 
-    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    model = genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
-        system_instruction=SYSTEM_PROMPT,
-        generation_config=genai.GenerationConfig(
-            max_output_tokens=1024,
-            temperature=0.0,
-        ),
+    api_key = os.environ["GEMINI_API_KEY"]
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{GEMINI_MODEL}:generateContent?key={api_key}"
     )
-    response = model.generate_content(prompt)
-    return _strip_fences(response.text)
+    payload = {
+        "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "maxOutputTokens": 1024,
+            "temperature": 0.0,
+        },
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req  = urllib.request.Request(
+        url,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        body = json.loads(resp.read().decode("utf-8"))
+
+    text = body["candidates"][0]["content"]["parts"][0]["text"]
+    return _strip_fences(text)
 
 
 def _generate_openai(prompt: str) -> Optional[str]:
