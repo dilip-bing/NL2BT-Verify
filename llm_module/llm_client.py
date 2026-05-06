@@ -175,19 +175,18 @@ def _strip_fences(text: str) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _generate_gemini(prompt: str) -> Optional[str]:
-    import google.genai as genai
-    from google.genai import types
+    import google.generativeai as genai
 
-    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-    response = client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=SYSTEM_PROMPT,
+    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+    model = genai.GenerativeModel(
+        model_name=GEMINI_MODEL,
+        system_instruction=SYSTEM_PROMPT,
+        generation_config=genai.GenerationConfig(
             max_output_tokens=1024,
             temperature=0.0,
         ),
     )
+    response = model.generate_content(prompt)
     return _strip_fences(response.text)
 
 
