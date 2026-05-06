@@ -5,6 +5,7 @@ Run with: python3 -m streamlit run web_interface/app.py
 import sys
 import os
 import time
+from typing import Optional
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import streamlit as st
@@ -158,12 +159,29 @@ with st.sidebar:
 
     st.divider()
     st.header("⚙️ Settings")
-    provider = st.selectbox(
-        "LLM Provider",
-        ["gemini", "anthropic", "openai"],
-        index=0,
-        help="Which LLM generates the Behavior Tree from your text",
+
+    # ── Provider fallback order ──────────────────────────────────────────
+    st.markdown("**LLM Provider Chain**")
+    st.caption("Providers are tried left-to-right. If one fails the next is used.")
+    all_providers = ["gemini", "openai", "anthropic"]
+    provider_order = st.multiselect(
+        "Fallback order (drag to reorder)",
+        options=all_providers,
+        default=all_providers,
+        help="Gemini → GPT-4o → Claude by default. Remove a provider to skip it.",
     )
+    if not provider_order:
+        st.warning("Select at least one provider.")
+        provider_order = all_providers
+
+    # ── SMT retry setting ────────────────────────────────────────────────
+    max_retries = st.slider(
+        "Max SMT-guided retries",
+        min_value=1, max_value=5, value=3,
+        help="If the BT fails verification, the LLM is called again with the "
+             "error details. This sets how many times to retry.",
+    )
+
     show_xml = st.checkbox("Show raw XML", value=True)
 
     st.divider()
@@ -206,26 +224,29 @@ with tab_live:
 ```
 Natural Language Input
        │
-       ▼  Stage 1 — LLM Translation
+       ▼  Stage 1 — LLM Translation (with fallback)
 ┌─────────────────────┐
-│  Gemini / Claude    │  Generates structured XML BT
-│  GPT-4o             │  temperature=0 (deterministic)
+│  Gemini  (1st try)  │  temperature=0 (deterministic)
+│  GPT-4o  (fallback) │  ← used if Gemini fails
+│  Claude  (fallback) │  ← used if GPT-4o fails
 └────────┬────────────┘
          │  XML Behavior Tree
          ▼  Stage 2 — SMT Verification (Z3)
 ┌─────────────────────┐
-│ P1 Structural       │  Valid node types, no cycles
+│ P1 Structural       │  Valid node types
 │ P2 Whitelist        │  Only allowed actions
-│ P3 Spatial bounds   │  Z3 Int arithmetic
+│ P3 Spatial bounds   │  Z3 LIA: 0 ≤ x ≤ W
 │ P4 Loop termination │  0 < n < threshold
 │ P5 Reachability     │  BFS graph check
 │ P6 Task ordering    │  UNSAT ⟹ violated
 └────────┬────────────┘
+    PASS │       │ FAIL  ← error fed back to LLM
+         │       ▼  Retry Stage 1 (up to N times)
          │  Verified BT
          ▼  Stage 3 — ROS 2 Execution
 ┌─────────────────────┐
 │  py_trees (10 Hz)   │
-│  Nav2 + TurtleBot3  │  Real path planning
+│  Nav2 + TurtleBot3  │
 └─────────────────────┘
 ```
         """)
@@ -236,42 +257,145 @@ Natural Language Input
             if not nl_input.strip():
                 st.warning("Please enter a command.")
             else:
-                with st.spinner("Stage 1: LLM generating behavior tree…"):
-                    from llm_module.llm_client import generate_behavior_tree
-                    t0 = time.perf_counter()
-                    try:
-                        xml_bt  = generate_behavior_tree(nl_input.strip(), provider=provider)
-                        llm_ms  = (time.perf_counter() - t0) * 1000
-                        llm_ok  = True
-                    except Exception as exc:
-                        llm_ms  = (time.perf_counter() - t0) * 1000
-                        xml_bt  = None
-                        llm_ok  = False
-                        llm_err = str(exc)
+                from llm_module.llm_client import generate_behavior_tree
+                from pipeline import _format_smt_feedback, _try_provider_with_retries
 
-                if not llm_ok or not xml_bt:
-                    err_msg = llm_err if not llm_ok else "empty response"
-                    st.error(f"LLM failed: {err_msg}")
-                else:
-                    with st.spinner("Stage 2: Z3 verifying 6 safety properties…"):
-                        verifier = SMTVerifier(
-                            allowed_actions=ALLOWED_ACTIONS,
-                            map_width=MAP_WIDTH,
-                            map_height=MAP_HEIGHT,
-                            loop_threshold=LOOP_THRESHOLD,
-                            known_locations=KNOWN_LOCATIONS,
-                            map_graph=MAP_GRAPH,
+                verifier = SMTVerifier(
+                    allowed_actions=ALLOWED_ACTIONS,
+                    map_width=MAP_WIDTH,
+                    map_height=MAP_HEIGHT,
+                    loop_threshold=LOOP_THRESHOLD,
+                    known_locations=KNOWN_LOCATIONS,
+                    map_graph=MAP_GRAPH,
+                )
+
+                chain        = provider_order if provider_order else ["gemini", "openai", "anthropic"]
+                attempt_log  = []   # {provider, attempt, passed, smt_ms, note}
+                final_xml    = None
+                final_result = None
+                total_llm_ms = 0.0
+                final_smt_ms = 0.0
+                done         = False
+
+                for provider in chain:
+                    if done:
+                        break
+
+                    smt_feedback: Optional[str] = None
+
+                    for attempt in range(1, max_retries + 1):
+                        label    = f"{provider} · attempt {attempt}/{max_retries}"
+                        is_retry = attempt > 1
+                        spin_msg = (
+                            f"[{label}] Generating behavior tree"
+                            + (" with SMT feedback…" if is_retry else "…")
                         )
-                        t1 = time.perf_counter()
-                        result = verifier.verify(xml_bt)
-                        smt_ms = (time.perf_counter() - t1) * 1000
+
+                        # ── Stage 1: LLM ─────────────────────────────────
+                        with st.spinner(spin_msg):
+                            t0 = time.perf_counter()
+                            try:
+                                xml_bt = generate_behavior_tree(
+                                    nl_input.strip(),
+                                    provider=provider,
+                                    smt_feedback=smt_feedback,
+                                )
+                                total_llm_ms += (time.perf_counter() - t0) * 1000
+                                api_ok = True
+                            except Exception as exc:
+                                total_llm_ms += (time.perf_counter() - t0) * 1000
+                                api_ok   = False
+                                api_err  = str(exc)
+
+                        if not api_ok:
+                            attempt_log.append({
+                                "provider": provider, "attempt": attempt,
+                                "passed": None, "smt_ms": 0,
+                                "note": f"API error — {api_err[:60]}",
+                            })
+                            # Break inner loop → try next provider
+                            break
+
+                        if not xml_bt:
+                            attempt_log.append({
+                                "provider": provider, "attempt": attempt,
+                                "passed": None, "smt_ms": 0,
+                                "note": "Empty response",
+                            })
+                            smt_feedback = "Previous generation was empty. Output valid XML only."
+                            continue
+
+                        # ── Stage 2: SMT ──────────────────────────────────
+                        with st.spinner(f"[{label}] Z3 verifying 6 safety properties…"):
+                            t1 = time.perf_counter()
+                            result       = verifier.verify(xml_bt)
+                            final_smt_ms = (time.perf_counter() - t1) * 1000
+
+                        final_xml    = xml_bt
+                        final_result = result
+                        attempt_log.append({
+                            "provider": provider, "attempt": attempt,
+                            "passed":   result["passed"],
+                            "smt_ms":   final_smt_ms,
+                            "note":     "PASS" if result["passed"] else
+                                        ", ".join(result.get("errors", [])),
+                        })
+
+                        if result["passed"]:
+                            done = True
+                            break
+
+                        # SMT failed — retry SAME provider with feedback
+                        smt_feedback = _format_smt_feedback(xml_bt, result)
+
+                    # If provider worked but all retries failed SMT → stop entirely
+                    # (don't switch providers for a logic error)
+                    if not done and api_ok and final_result is not None:
+                        break
+
+                # ── Show attempt log ──────────────────────────────────────
+                if len(attempt_log) > 1:
+                    st.markdown("**🔄 Attempt History**")
+                    for e in attempt_log:
+                        if e["passed"] is True:
+                            icon = "✅"
+                        elif e["passed"] is False:
+                            icon = "❌"
+                        else:
+                            icon = "⚠️"
+                        smt_str = f"  SMT {e['smt_ms']:.1f} ms" if e["smt_ms"] else ""
+                        st.caption(
+                            f"{icon} [{e['provider']}] attempt {e['attempt']}"
+                            f"{smt_str}  — {e['note']}"
+                        )
+                    st.divider()
+
+                if final_result is not None:
+                    used_provider = attempt_log[-1]["provider"] if attempt_log else "?"
                     st.session_state["live_result"] = dict(
-                        xml=xml_bt, result=result, llm_ms=llm_ms, smt_ms=smt_ms
+                        xml=final_xml,
+                        result=final_result,
+                        llm_ms=total_llm_ms,
+                        smt_ms=final_smt_ms,
+                        attempts=len(attempt_log),
+                        provider=used_provider,
                     )
+                elif not any(e["passed"] is not None for e in attempt_log):
+                    st.error("All providers failed with API errors.")
 
         data = st.session_state.get("live_result")
         if data:
-            show_result(data["result"], data["xml"], data["llm_ms"], data["smt_ms"], show_xml)
+            show_result(
+                data["result"], data["xml"],
+                data["llm_ms"], data["smt_ms"],
+                show_xml,
+            )
+            n = data.get("attempts", 1)
+            p = data.get("provider", "")
+            if n > 1:
+                st.caption(f"🤖 Provider: **{p}**  |  Total attempts: **{n}**")
+            else:
+                st.caption(f"🤖 Provider: **{p}**")
         elif not run_btn:
             st.info("Enter a command and click **Compile & Verify** to see results.")
 

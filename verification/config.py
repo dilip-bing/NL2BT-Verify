@@ -2,6 +2,7 @@
 Shared configuration: allowed actions, map dimensions, loop limits, known locations.
 Both the SMT verifier and the LLM prompt use these values to stay in sync.
 """
+from __future__ import annotations
 
 ALLOWED_ACTIONS = {
     "move_to",

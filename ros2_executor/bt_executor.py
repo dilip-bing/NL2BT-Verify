@@ -1,34 +1,35 @@
 """
-Stage 3: ROS 2 Executor — loads a verified XML BT and runs it via py_trees_ros.
-This module is only imported when ROS 2 Humble is available.
+Stage 3 entry point — called from pipeline.py.
+
+Auto-detects which ROS version is available:
+  • ROS 2 (rclpy present)  → uses ros2_executor.bt_executor_node  (Nav2 / TurtleBot3)
+  • ROS 1 (rospy present)  → uses ros1_executor.bt_executor_node   (move_base / TurtleBot2/Kobuki)
+  • Neither                → prints the verified XML (dry-run / CI mode)
 """
-import xml.etree.ElementTree as ET
 
 
 def execute_behavior_tree(xml_string: str):
-    """Load a verified XML BT and execute via py_trees_ros."""
+    # ── Try ROS 2 first ────────────────────────────────────────────────────────
     try:
-        import rclpy
-        import py_trees_ros
-    except ImportError:
-        print("[Executor] ROS 2 / py_trees_ros not available. Skipping execution.")
-        print("[Executor] XML BT that would have been executed:")
-        print(xml_string)
+        import rclpy  # noqa: F401
+        from ros2_executor.bt_executor_node import execute_behavior_tree as _exec_ros2
+        print("[Executor] ROS 2 detected → using Nav2 executor")
+        _exec_ros2(xml_string)
         return
+    except ImportError:
+        pass
 
-    rclpy.init()
-
-    # Write XML to a temp file — py_trees_ros loads from file path
-    import tempfile, os
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False) as f:
-        f.write(xml_string)
-        tmp_path = f.name
-
+    # ── Fall back to ROS 1 ─────────────────────────────────────────────────────
     try:
-        # TODO: Replace with actual py_trees_ros XML tree loader once
-        # ROS 2 package structure is set up (see ros2_executor/bt_ros2_pkg/)
-        print(f"[Executor] Would load BT from: {tmp_path}")
-        print("[Executor] py_trees_ros execution stub — implement BT node wiring here")
-    finally:
-        os.unlink(tmp_path)
-        rclpy.shutdown()
+        import rospy  # noqa: F401
+        from ros1_executor.bt_executor_node import execute_behavior_tree as _exec_ros1
+        print("[Executor] ROS 1 detected → using move_base executor")
+        _exec_ros1(xml_string)
+        return
+    except ImportError:
+        pass
+
+    # ── No ROS — dry-run mode ──────────────────────────────────────────────────
+    print("[Executor] No ROS installation found — running in dry-run mode.")
+    print("[Executor] Verified XML that would be executed on hardware:")
+    print(xml_string)
