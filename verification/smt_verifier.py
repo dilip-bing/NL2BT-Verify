@@ -2,6 +2,7 @@
 SMT-based formal verification engine using Z3.
 Checks 5 safety properties on an XML Behavior Tree before execution.
 """
+from __future__ import annotations
 import xml.etree.ElementTree as ET
 from typing import Optional
 from z3 import And, Bool, BoolVal, Int, Or, Solver, sat, unsat, Implies

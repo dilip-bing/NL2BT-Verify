@@ -8,6 +8,7 @@ Provider fallback chain  : Gemini → GPT-4o → Claude
 Retry-with-feedback      : pipeline.py passes SMT error context on retries
   so the LLM can fix specific violations rather than regenerating blindly.
 """
+from __future__ import annotations
 import os
 import logging
 from typing import Optional
