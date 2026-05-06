@@ -396,6 +396,47 @@ Natural Language Input
                 st.caption(f"🤖 Provider: **{p}**  |  Total attempts: **{n}**")
             else:
                 st.caption(f"🤖 Provider: **{p}**")
+
+            # ── Execute on Robot ──────────────────────────────────────────
+            if data["result"]["passed"]:
+                st.divider()
+                st.subheader("③ Execute on Robot")
+                st.caption("Sends the verified BT to the ROS executor. Make sure navigation is running first.")
+                exec_btn = st.button("▶ Execute on Robot", type="primary", use_container_width=True)
+                if exec_btn:
+                    import subprocess, tempfile, threading
+
+                    # Write XML to a temp file
+                    with tempfile.NamedTemporaryFile(
+                        mode="w", suffix=".xml", delete=False,
+                        prefix="nl2bt_verified_"
+                    ) as f:
+                        f.write(data["xml"])
+                        tmp_path = f.name
+
+                    st.info(f"Executing BT: `{tmp_path}`")
+                    output_box = st.empty()
+                    log_lines  = []
+
+                    def stream_exec():
+                        proc = subprocess.Popen(
+                            ["python3", "-m", "ros1_executor.bt_executor_node", tmp_path],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            text=True,
+                            cwd=os.path.join(os.path.dirname(__file__), ".."),
+                        )
+                        for line in proc.stdout:
+                            log_lines.append(line.rstrip())
+                        proc.wait()
+                        log_lines.append(f"\n[Executor exited with code {proc.returncode}]")
+
+                    t = threading.Thread(target=stream_exec, daemon=True)
+                    t.start()
+                    t.join(timeout=120)   # wait up to 2 min
+
+                    output_box.code("\n".join(log_lines), language="bash")
+
         elif not run_btn:
             st.info("Enter a command and click **Compile & Verify** to see results.")
 
