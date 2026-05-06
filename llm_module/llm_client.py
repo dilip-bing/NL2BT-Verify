@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 PROMPT_FILE   = Path(__file__).parent / "prompts" / "system_prompt.txt"
 SYSTEM_PROMPT = PROMPT_FILE.read_text()
 
-GEMINI_MODEL    = "gemini-2.0-flash"
+GEMINI_MODEL    = "gemini-1.5-flash"
 ANTHROPIC_MODEL = "claude-sonnet-4-5"
 OPENAI_MODEL    = "gpt-4o"
 
