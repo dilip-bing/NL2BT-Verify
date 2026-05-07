@@ -154,13 +154,15 @@ class CloseDoor(py_trees.behaviour.Behaviour):
         return py_trees.common.Status.SUCCESS
 
 
-class Charge(py_trees.behaviour.Behaviour):
+class Charge(_SpinBehaviour):
+    """Spins 360° to simulate docking to charge."""
+
     def __init__(self, name: str):
         super().__init__(name="charge")
 
-    def update(self) -> py_trees.common.Status:
-        rospy.loginfo("[Charge] Docking to charge …")
-        return py_trees.common.Status.SUCCESS
+    def initialise(self):
+        rospy.loginfo("[Charge] Docking to charge — spinning 360°")
+        super().initialise()
 
 
 class Deliver(_SpinBehaviour):
