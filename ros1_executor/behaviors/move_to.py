@@ -28,18 +28,12 @@ from geometry_msgs.msg import Quaternion
 # Run: roslaunch turtlebot_navigation amcl_demo.launch map_file:=<map.yaml>
 # Then use RViz 2D Nav Goal clicks to find real coordinates.
 LOCATION_MAP = {
-    "room_a":           (1.0,  1.0,   0.0),   # ← replace with real values
-    "room_b":           (3.0,  1.0,   0.0),
-    "room_c":           (1.0,  3.0,   0.0),
-    "room_d":           (3.0,  3.0,   0.0),
-    "shelf_1":          (1.5,  1.5,   0.0),
-    "shelf_2":          (2.0,  1.5,   0.0),
-    "shelf_3":          (2.5,  1.5,   0.0),
-    "shelf_4":          (1.5,  2.5,   0.0),
-    "shelf_5":          (2.0,  2.5,   0.0),
-    "loading_dock":     (2.0,  0.5,   0.0),
-    "charging_station": (0.5,  0.5, 180.0),   # face the charger
-    "start":            (0.0,  0.0,   0.0),
+    "startingposition":    (1.187,  0.125,  1.0),
+    "shelf1":              (1.187,  0.125,  1.0),
+    "shelf2":              (3.802,  2.424,  74.1),
+    "roomb":               (4.771,  5.09,  70.0),
+    "rooma":               (7.206,  3.328,  -53.9),
+    "chargingdock":        (3.574,  0.143,  -166.5),
 }
 
 # move_base action server name (standard for TurtleBot2)
