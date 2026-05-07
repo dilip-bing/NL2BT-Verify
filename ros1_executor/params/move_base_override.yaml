@@ -9,15 +9,14 @@
 
 move_base:
   global_costmap:
-    inflation_radius: 0.15      # default 0.55 — too large for small lab
-    robot_radius: 0.18          # Kobuki base radius
+    inflation_layer:
+      inflation_radius: 0.15    # default ~0.55 — too large for small lab
   local_costmap:
-    inflation_radius: 0.15
-    robot_radius: 0.18
+    inflation_layer:
+      inflation_radius: 0.15
   DWAPlannerROS:
     max_vel_x: 0.3              # conservative speed indoors
     min_vel_x: 0.0
     max_rot_vel: 1.0
-    goal_tolerance:
-      xy_goal_tolerance: 0.3   # 30cm tolerance — easier to reach goal
-      yaw_goal_tolerance: 0.5
+    xy_goal_tolerance: 0.3      # 30cm tolerance — easier to reach goal
+    yaw_goal_tolerance: 0.5
