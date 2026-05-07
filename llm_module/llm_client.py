@@ -188,7 +188,7 @@ def _generate_gemini(prompt: str) -> Optional[str]:
         "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
-            "maxOutputTokens": 1024,
+            "maxOutputTokens": 2048,
             "temperature": 0.0,
         },
     }
