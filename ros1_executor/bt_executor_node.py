@@ -32,11 +32,11 @@ def _set_initial_pose():
     """
     from ros1_executor.behaviors.move_to import LOCATION_MAP
 
-    if "startingposition" not in LOCATION_MAP:
-        rospy.logwarn("[InitPose] 'startingposition' not in LOCATION_MAP — skipping auto-pose")
+    if "start" not in LOCATION_MAP:
+        rospy.logwarn("[InitPose] 'start' not in LOCATION_MAP — skipping auto-pose")
         return
 
-    x, y, _ = LOCATION_MAP["startingposition"]
+    x, y, _ = LOCATION_MAP["start"]
 
     pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1, latch=True)
     rospy.sleep(0.5)   # give publisher time to connect

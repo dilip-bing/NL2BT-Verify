@@ -26,12 +26,12 @@ LOOP_THRESHOLD = 100
 
 # Named locations and their (x, y) coordinates in the lab map frame (metres)
 KNOWN_LOCATIONS = {
-    "startingposition": (1.187, 0.125),
-    "shelf1":           (1.187, 0.125),
-    "shelf2":           (3.802, 2.424),
-    "roomb":            (4.771, 5.09),
-    "rooma":            (7.206, 3.328),
-    "chargingdock":     (3.574, 0.143),
+    "start":            (1.187, 0.125),
+    "shelf_1":          (1.187, 0.125),
+    "shelf_2":          (3.802, 2.424),
+    "room_b":           (4.771, 5.090),
+    "room_a":           (7.206, 3.328),
+    "charging_station": (3.574, 0.143),
 }
 
 # Map connectivity graph (location → reachable locations)

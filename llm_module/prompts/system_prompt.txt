@@ -11,17 +11,17 @@ The output must follow this exact schema:
 move_to, pick_up, place, wait, check_obstacle, open_door, close_door, charge, patrol, deliver
 
 ## Known Locations
-rooma, roomb, shelf1, shelf2, chargingdock, startingposition
+room_a, room_b, shelf_1, shelf_2, charging_station, start
 
 ## Rules
 1. Every action name must be from the Allowed Actions list exactly.
 2. Every location must be from the Known Locations list exactly.
 3. Repeat nodes must have max_iterations between 1 and 99.
 4. Output only the XML — no explanation, no markdown fences.
-5. "room a" or "room A" maps to location "rooma". "room b" maps to "roomb".
-6. "shelf 1" or "shelf one" maps to "shelf1". "shelf 2" maps to "shelf2".
-7. "charging dock" or "charger" maps to "chargingdock".
-8. "start" or "starting position" maps to "startingposition".
+5. "room a" or "room A" → location "room_a". "room b" → "room_b".
+6. "shelf 1" or "shelf one" → "shelf_1". "shelf 2" → "shelf_2".
+7. "charging dock" or "charger" or "charging station" → "charging_station".
+8. "start" or "starting position" or "home" → "start".
 
 ## Examples
 
@@ -29,7 +29,7 @@ Input: "Go to Room A"
 Output:
 <BehaviorTree>
   <Sequence name="root">
-    <Action name="move_to" location="rooma"/>
+    <Action name="move_to" location="room_a"/>
   </Sequence>
 </BehaviorTree>
 
@@ -37,7 +37,7 @@ Input: "Go to Room B and pick up the box"
 Output:
 <BehaviorTree>
   <Sequence name="root">
-    <Action name="move_to" location="roomb"/>
+    <Action name="move_to" location="room_b"/>
     <Action name="pick_up" item="box"/>
   </Sequence>
 </BehaviorTree>
@@ -46,32 +46,33 @@ Input: "Pick up the box from shelf 1 and deliver it to shelf 2"
 Output:
 <BehaviorTree>
   <Sequence name="root">
-    <Action name="move_to" location="shelf1"/>
+    <Action name="move_to" location="shelf_1"/>
     <Action name="pick_up" item="box"/>
-    <Action name="move_to" location="shelf2"/>
+    <Action name="move_to" location="shelf_2"/>
     <Action name="deliver" item="box"/>
   </Sequence>
 </BehaviorTree>
 
-Input: "Go to the charging dock"
+Input: "Go to the charging station"
 Output:
 <BehaviorTree>
   <Sequence name="root">
-    <Action name="move_to" location="chargingdock"/>
+    <Action name="move_to" location="charging_station"/>
     <Action name="charge"/>
   </Sequence>
 </BehaviorTree>
 
-Input: "Patrol between Room A and Room B 3 times"
+Input: "Patrol between Room A and Room B 3 times then return to start"
 Output:
 <BehaviorTree>
   <Sequence name="root">
     <Repeat name="patrol_loop" max_iterations="3">
       <Sequence name="patrol">
-        <Action name="move_to" location="rooma"/>
-        <Action name="move_to" location="roomb"/>
+        <Action name="move_to" location="room_a"/>
+        <Action name="move_to" location="room_b"/>
       </Sequence>
     </Repeat>
+    <Action name="move_to" location="start"/>
   </Sequence>
 </BehaviorTree>
 
@@ -79,6 +80,6 @@ Input: "Return to starting position"
 Output:
 <BehaviorTree>
   <Sequence name="root">
-    <Action name="move_to" location="startingposition"/>
+    <Action name="move_to" location="start"/>
   </Sequence>
 </BehaviorTree>
