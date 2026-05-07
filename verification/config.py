@@ -28,7 +28,7 @@ LOOP_THRESHOLD = 100
 KNOWN_LOCATIONS = {
     "start":            (1.187, 0.125),
     "shelf_1":          (1.187, 0.125),
-    "shelf_2":          (3.802, 2.424),
+    "shelf_2":          (3.750, 2.400),
     "room_b":           (4.771, 5.090),
     "room_a":           (7.206, 3.328),
     "charging_station": (3.574, 0.143),

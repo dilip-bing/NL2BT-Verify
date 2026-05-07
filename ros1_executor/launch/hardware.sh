@@ -116,7 +116,14 @@ new_term "Navigation (AMCL)" \
     "TURTLEBOT_BASE=kobuki TURTLEBOT_3D_SENSOR=astra \
      roslaunch turtlebot_navigation amcl_demo.launch map_file:=$MAP_FILE"
 
-sleep 3
+sleep 5   # wait for move_base to fully load before overriding params
+
+# ── 5. Fix costmap inflation (default 0.5 is too large for small lab) ─────────
+info "Reducing costmap inflation radius to 0.05 …"
+rosparam set /move_base/global_costmap/inflation_layer/inflation_radius 0.05
+rosparam set /move_base/local_costmap/inflation_layer/inflation_radius 0.05
+rosservice call /move_base/clear_costmaps "{}" 2>/dev/null || true
+info "Costmap inflation updated ✓"
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""

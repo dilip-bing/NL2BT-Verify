@@ -30,7 +30,7 @@ from geometry_msgs.msg import Quaternion
 LOCATION_MAP = {
     "start":            (1.187,  0.125,   1.0),
     "shelf_1":          (1.187,  0.125,   1.0),
-    "shelf_2":          (3.802,  2.424,  74.1),
+    "shelf_2":          (3.750,  2.400,  74.1),
     "room_b":           (4.771,  5.090,  70.0),
     "room_a":           (7.206,  3.328, -53.9),
     "charging_station": (3.574,  0.143, -166.5),
