@@ -50,9 +50,11 @@ def execute_behavior_tree(xml_string: str):
         rospy.logerr(f"[Executor] Failed to build tree: {e}")
         return
 
-    # Call setup() on all nodes (creates actionlib clients, etc.)
+    # Call setup() on ALL nodes recursively (creates actionlib clients, etc.)
+    # Note: root.setup() only runs on the root node itself — must iterate children.
     rospy.loginfo("[Executor] Setting up behavior tree …")
-    root.setup(timeout=15)
+    for node in root.iterate():
+        node.setup()
 
     # Print tree structure
     rospy.loginfo("\n" + py_trees.display.ascii_tree(root))
