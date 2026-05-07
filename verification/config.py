@@ -17,27 +17,21 @@ ALLOWED_ACTIONS = {
     "deliver",
 }
 
-# Gazebo world dimensions (grid units)
-MAP_WIDTH = 200
-MAP_HEIGHT = 200
+# Lab map dimensions in metres (real TurtleBot2 map)
+MAP_WIDTH = 15
+MAP_HEIGHT = 15
 
 # Maximum loop iterations allowed
 LOOP_THRESHOLD = 100
 
-# Named locations and their (x, y) coordinates in the Gazebo world
+# Named locations and their (x, y) coordinates in the lab map frame (metres)
 KNOWN_LOCATIONS = {
-    "room_a":       (20,  20),
-    "room_b":       (180, 20),
-    "room_c":       (20,  180),
-    "room_d":       (180, 180),
-    "shelf_1":      (50,  50),
-    "shelf_2":      (100, 50),
-    "shelf_3":      (150, 50),
-    "shelf_4":      (50,  150),
-    "shelf_5":      (100, 150),
-    "loading_dock": (100, 10),
-    "charging_station": (10, 10),
-    "start":        (100, 100),
+    "startingposition": (1.187, 0.125),
+    "shelf1":           (1.187, 0.125),
+    "shelf2":           (3.802, 2.424),
+    "roomb":            (4.771, 5.09),
+    "rooma":            (7.206, 3.328),
+    "chargingdock":     (3.574, 0.143),
 }
 
 # Map connectivity graph (location → reachable locations)
