@@ -75,8 +75,11 @@ def execute_behavior_tree(xml_string: str):
     rospy.init_node("nl2bt_executor", anonymous=False)
     rospy.loginfo("=== NL2BT-Verify ROS 1 Executor starting ===")
 
-    # ── Auto-set initial pose so AMCL knows where the robot is ────────────────
-    _set_initial_pose()
+    # ── Auto-set initial pose (only if robot is at start position) ───────────
+    # Disabled: robot may not always be at 'start' when executor launches.
+    # Run this manually if needed:
+    #   rostopic pub -1 /initialpose geometry_msgs/PoseWithCovarianceStamped ...
+    # _set_initial_pose()
 
     # Publisher for box state (visualisation / debugging)
     box_pub = rospy.Publisher("/box_state", String, queue_size=10)
