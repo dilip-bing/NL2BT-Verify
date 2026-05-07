@@ -16,11 +16,53 @@ import time
 import rospy
 import py_trees
 from std_msgs.msg import String
+from geometry_msgs.msg import PoseWithCovarianceStamped
 
 from ros1_executor.xml_loader import load_tree_from_xml
 
 # Tick rate in Hz
 TICK_HZ = 10
+
+
+def _set_initial_pose():
+    """
+    Publish the robot's starting position to /initialpose so AMCL
+    localises immediately without needing RViz 2D Pose Estimate.
+    Uses the 'startingposition' coordinates from LOCATION_MAP.
+    """
+    from ros1_executor.behaviors.move_to import LOCATION_MAP
+
+    if "startingposition" not in LOCATION_MAP:
+        rospy.logwarn("[InitPose] 'startingposition' not in LOCATION_MAP — skipping auto-pose")
+        return
+
+    x, y, _ = LOCATION_MAP["startingposition"]
+
+    pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1, latch=True)
+    rospy.sleep(0.5)   # give publisher time to connect
+
+    msg = PoseWithCovarianceStamped()
+    msg.header.frame_id = "map"
+    msg.header.stamp    = rospy.Time.now()
+    msg.pose.pose.position.x    = x
+    msg.pose.pose.position.y    = y
+    msg.pose.pose.position.z    = 0.0
+    msg.pose.pose.orientation.x = 0.0
+    msg.pose.pose.orientation.y = 0.0
+    msg.pose.pose.orientation.z = 0.0
+    msg.pose.pose.orientation.w = 1.0
+    # Covariance: moderate uncertainty so AMCL can still refine with laser
+    msg.pose.covariance = [
+        0.25, 0, 0, 0, 0, 0,
+        0, 0.25, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0.07,
+    ]
+    pub.publish(msg)
+    rospy.loginfo(f"[InitPose] Initial pose set → x={x}, y={y} (AMCL localising…)")
+    rospy.sleep(2.0)   # give AMCL time to process and spread particles
 
 
 def execute_behavior_tree(xml_string: str):
@@ -32,6 +74,9 @@ def execute_behavior_tree(xml_string: str):
     """
     rospy.init_node("nl2bt_executor", anonymous=False)
     rospy.loginfo("=== NL2BT-Verify ROS 1 Executor starting ===")
+
+    # ── Auto-set initial pose so AMCL knows where the robot is ────────────────
+    _set_initial_pose()
 
     # Publisher for box state (visualisation / debugging)
     box_pub = rospy.Publisher("/box_state", String, queue_size=10)
