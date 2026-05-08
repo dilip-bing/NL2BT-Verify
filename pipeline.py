@@ -1,5 +1,5 @@
 """
-End-to-end pipeline: Natural Language → XML BT → SMT Verify → ROS 2 Execute
+End-to-end pipeline: Natural Language → XML BT → SMT Verify → ROS 1 Execute
 
 Two independent resilience mechanisms:
 
@@ -269,8 +269,8 @@ def run_pipeline(
             print(f"{'='*60}")
 
             if execute:
-                print(f"\n[Stage 3] ROS 2 Execution")
-                from ros2_executor.bt_executor import execute_behavior_tree
+                print(f"\n[Stage 3] ROS 1 Execution")
+                from ros1_executor.bt_executor_node import execute_behavior_tree
                 execute_behavior_tree(outcome["xml"])
 
             return {

@@ -10,10 +10,10 @@
 move_base:
   global_costmap:
     inflation_layer:
-      inflation_radius: 0.15    # default ~0.55 — too large for small lab
+      inflation_radius: 0.05    # default ~0.55 — too large for small lab
   local_costmap:
     inflation_layer:
-      inflation_radius: 0.15
+      inflation_radius: 0.05
   DWAPlannerROS:
     max_vel_x: 0.3              # conservative speed indoors
     min_vel_x: 0.0

@@ -72,12 +72,12 @@ def show_result(result, xml_bt, llm_ms, smt_ms, show_xml=True):
 # ── Pre-built demo BTs (no LLM needed, instant) ──────────────────────────────
 DEMO_BTS = {
     "✅ Pick up and deliver (safe)": (
-        "Pick up the box from shelf 1 and deliver it to the loading dock",
+        "Pick up the box from shelf 1 and deliver it to the charging station",
         """<BehaviorTree>
   <Sequence name="DeliverBox">
     <Action name="move_to" location="shelf_1"/>
     <Action name="pick_up" item="box"/>
-    <Action name="move_to" location="loading_dock"/>
+    <Action name="move_to" location="charging_station"/>
     <Action name="deliver" item="box"/>
   </Sequence>
 </BehaviorTree>""",
@@ -142,12 +142,12 @@ DEMO_BTS = {
 
 # ── Sidebar ──────────────────────────────────────────────────────────────────
 EXAMPLES = {
-    "✅ Pick up and deliver":   "Pick up the box from shelf 1 and deliver it to the loading dock",
-    "✅ Multi-room patrol":     "Patrol room A, room B, and room C three times then go to charging station",
-    "✅ Conditional delivery":  "If there is an obstacle open the door, pick up box from shelf 2 and place it in room D",
+    "✅ Pick up and deliver":   "Pick up the box from shelf 1 and deliver it to the charging station",
+    "✅ Multi-room patrol":     "Patrol room A and room B three times then go to charging station",
+    "✅ Shelf 2 delivery":      "Go to shelf 2, pick up the box, and bring it to the charging station",
     "❌ Dangerous — fire laser":"Move to room A then fire the laser at the wall",
     "❌ Unknown location":      "Pick up the box and take it to the moon base",
-    "❌ No move before pick-up":"Pick up the box immediately then deliver it to loading dock",
+    "❌ No move before pick-up":"Pick up the box immediately then deliver it to the charging station",
 }
 
 with st.sidebar:
@@ -194,7 +194,7 @@ with st.sidebar:
 st.markdown('<div class="big-title">🤖 NL2BT-Verify</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="subtitle">Natural Language → Behavior Tree '
-    '→ SMT Formal Verification → ROS 2 Execution</div>',
+    '→ SMT Formal Verification → ROS 1 Execution</div>',
     unsafe_allow_html=True,
 )
 st.divider()
@@ -243,10 +243,10 @@ Natural Language Input
     PASS │       │ FAIL  ← error fed back to LLM
          │       ▼  Retry Stage 1 (up to N times)
          │  Verified BT
-         ▼  Stage 3 — ROS 2 Execution
+         ▼  Stage 3 — ROS 1 Execution
 ┌─────────────────────┐
 │  py_trees (10 Hz)   │
-│  Nav2 + TurtleBot3  │
+│  move_base + TB2    │
 └─────────────────────┘
 ```
         """)

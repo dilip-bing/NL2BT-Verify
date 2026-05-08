@@ -119,11 +119,18 @@ new_term "Navigation (AMCL)" \
 sleep 5   # wait for move_base to fully load before overriding params
 
 # ── 5. Fix costmap inflation (default 0.5 is too large for small lab) ─────────
-info "Reducing costmap inflation radius to 0.05 …"
-rosparam set /move_base/global_costmap/inflation_layer/inflation_radius 0.05
-rosparam set /move_base/local_costmap/inflation_layer/inflation_radius 0.05
+OVERRIDE_YAML="$HOME/NL2BT-Verify/ros1_executor/params/move_base_override.yaml"
+info "Loading move_base overrides from $OVERRIDE_YAML …"
+if [[ -f "$OVERRIDE_YAML" ]]; then
+    rosparam load "$OVERRIDE_YAML"
+else
+    # Fallback: set individually if YAML not found
+    warn "Override YAML not found — using rosparam set fallback"
+    rosparam set /move_base/global_costmap/inflation_layer/inflation_radius 0.05
+    rosparam set /move_base/local_costmap/inflation_layer/inflation_radius 0.05
+fi
 rosservice call /move_base/clear_costmaps "{}" 2>/dev/null || true
-info "Costmap inflation updated ✓"
+info "Costmap inflation updated ✓  (radius = 0.05)"
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
