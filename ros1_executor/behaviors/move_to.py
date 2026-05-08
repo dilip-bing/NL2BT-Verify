@@ -22,6 +22,23 @@ import py_trees
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from geometry_msgs.msg import Quaternion
 
+# Human-readable actionlib goal state names
+_GOAL_STATE_NAMES = {
+    0: "PENDING",
+    1: "ACTIVE",
+    2: "PREEMPTED",
+    3: "SUCCEEDED",
+    4: "ABORTED",
+    5: "REJECTED",
+    6: "PREEMPTING",
+    7: "RECALLING",
+    8: "RECALLED",
+    9: "LOST",
+}
+
+# How often (seconds) to log "still navigating…" while RUNNING
+_PROGRESS_LOG_INTERVAL = 10.0
+
 
 # ── Named locations → (x, y, yaw_degrees) in the map frame ──────────────────
 # IMPORTANT: replace placeholder values with coordinates from YOUR lab map.
@@ -74,6 +91,8 @@ class MoveTo(py_trees.behaviour.Behaviour):
         self.location = location.lower().replace(" ", "_")
         self._client = None
         self._goal_sent = False
+        self._goal_start_time = None
+        self._last_log_time = None
 
     def setup(self, **kwargs):
         """Called once before the tree starts ticking.  Creates the action client."""
@@ -91,6 +110,8 @@ class MoveTo(py_trees.behaviour.Behaviour):
     def initialise(self):
         """Called every time the node transitions from INVALID → RUNNING."""
         self._goal_sent = False
+        self._goal_start_time = None
+        self._last_log_time = None
 
         if self.location not in LOCATION_MAP:
             rospy.logerr(
@@ -117,6 +138,8 @@ class MoveTo(py_trees.behaviour.Behaviour):
 
         self._client.send_goal(goal)
         self._goal_sent = True
+        self._goal_start_time = time.time()
+        self._last_log_time = self._goal_start_time
         rospy.loginfo(
             f"[MoveTo] Goal sent → '{self.location}'  "
             f"(x={x:.2f}, y={y:.2f}, yaw={yaw_deg:.0f}°)"
@@ -131,18 +154,63 @@ class MoveTo(py_trees.behaviour.Behaviour):
             return py_trees.common.Status.FAILURE
 
         state = self._client.get_state()
+        state_name = _GOAL_STATE_NAMES.get(state, f"UNKNOWN({state})")
 
-        # actionlib states: PENDING=0, ACTIVE=1, SUCCEEDED=3, ABORTED=4, etc.
+        # Log progress every N seconds while still navigating
         if state in (actionlib.GoalStatus.PENDING, actionlib.GoalStatus.ACTIVE):
+            now = time.time()
+            elapsed = now - self._goal_start_time
+            if now - self._last_log_time >= _PROGRESS_LOG_INTERVAL:
+                x, y, _ = LOCATION_MAP[self.location]
+                rospy.loginfo(
+                    f"[MoveTo] Still navigating to '{self.location}' "
+                    f"(x={x:.2f}, y={y:.2f}) — {elapsed:.0f}s elapsed, "
+                    f"state={state_name}"
+                )
+                self._last_log_time = now
             return py_trees.common.Status.RUNNING
 
+        elapsed = time.time() - self._goal_start_time
+
         if state == actionlib.GoalStatus.SUCCEEDED:
-            rospy.loginfo(f"[MoveTo] ✓ Reached '{self.location}'")
+            rospy.loginfo(
+                f"[MoveTo] ✓ Reached '{self.location}' in {elapsed:.1f}s"
+            )
             return py_trees.common.Status.SUCCESS
 
+        # ── FAILED — log state name + likely cause to help diagnose ──────────
+        x, y, _ = LOCATION_MAP[self.location]
+        inflation = "unknown"
+        try:
+            inflation = rospy.get_param(
+                "/move_base/global_costmap/inflation_layer/inflation_radius"
+            )
+        except KeyError:
+            pass
+
+        hint = ""
+        if state == actionlib.GoalStatus.ABORTED:
+            hint = (
+                "  Common causes of ABORTED:\n"
+                f"    1. inflation_radius={inflation} — if > 0.1, path is blocked.\n"
+                "       Fix: rosparam set /move_base/global_costmap/inflation_layer/inflation_radius 0.05\n"
+                "            rosparam set /move_base/local_costmap/inflation_layer/inflation_radius 0.05\n"
+                "            rosservice call /move_base/clear_costmaps '{}'\n"
+                "    2. AMCL not localised — robot thinks it is in a wall.\n"
+                "       Fix: RViz → '2D Pose Estimate' → click robot's real position\n"
+                "    3. Goal coordinates are inside an obstacle in the map.\n"
+                f"       Goal was: x={x:.3f}, y={y:.3f} — verify in RViz"
+            )
+        elif state == actionlib.GoalStatus.REJECTED:
+            hint = (
+                f"  Goal REJECTED by move_base — x={x:.3f}, y={y:.3f} may be\n"
+                "  outside the map boundaries or in a lethal obstacle cell."
+            )
+
         rospy.logerr(
-            f"[MoveTo] ✗ Failed to reach '{self.location}' "
-            f"— move_base state: {state}"
+            f"[MoveTo] ✗ Failed to reach '{self.location}' after {elapsed:.1f}s\n"
+            f"  move_base state: {state} ({state_name})\n"
+            f"{hint}"
         )
         return py_trees.common.Status.FAILURE
 

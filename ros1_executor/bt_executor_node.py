@@ -65,6 +65,62 @@ def _set_initial_pose():
     rospy.sleep(2.0)   # give AMCL time to process and spread particles
 
 
+def _check_inflation_radius():
+    """Log inflation radius and warn loudly if it is still at the default 0.5."""
+    for ns in ("global_costmap", "local_costmap"):
+        param = f"/move_base/{ns}/inflation_layer/inflation_radius"
+        try:
+            val = rospy.get_param(param)
+            if val > 0.1:
+                rospy.logerr(
+                    f"[StartupCheck] {param} = {val}  ← TOO LARGE, paths will be blocked!\n"
+                    "  Fix now:\n"
+                    f"    rosparam set {param} 0.05\n"
+                    "    rosservice call /move_base/clear_costmaps '{}'"
+                )
+            else:
+                rospy.loginfo(f"[StartupCheck] {param} = {val}  ✓")
+        except KeyError:
+            rospy.logwarn(f"[StartupCheck] {param} not found — move_base may not be running yet")
+
+
+def _check_amcl_pose():
+    """
+    Wait up to 3 s for one /amcl_pose message and log the robot's estimated
+    position.  A near-zero pose (0,0) or a position far outside the map usually
+    means AMCL has not been given an initial pose yet.
+    """
+    from geometry_msgs.msg import PoseWithCovarianceStamped
+    received = []
+
+    def _cb(msg):
+        received.append(msg)
+
+    sub = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, _cb)
+    deadline = rospy.Time.now() + rospy.Duration(3.0)
+    while not received and rospy.Time.now() < deadline:
+        rospy.sleep(0.1)
+    sub.unregister()
+
+    if not received:
+        rospy.logwarn(
+            "[StartupCheck] /amcl_pose — no message received in 3 s.\n"
+            "  AMCL may not be running or the robot has not been localised yet.\n"
+            "  In RViz: click '2D Pose Estimate' and mark where the robot IS on the map."
+        )
+        return
+
+    p = received[0].pose.pose.position
+    rospy.loginfo(
+        f"[StartupCheck] AMCL pose → x={p.x:.3f}  y={p.y:.3f}  z={p.z:.3f}"
+    )
+    if abs(p.x) < 0.01 and abs(p.y) < 0.01:
+        rospy.logwarn(
+            "[StartupCheck] AMCL pose is at (0, 0) — robot is probably NOT localised.\n"
+            "  In RViz: click '2D Pose Estimate' and click the robot's real position on the map."
+        )
+
+
 def execute_behavior_tree(xml_string: str):
     """
     Entry point called from pipeline.py (Stage 3).
@@ -74,6 +130,13 @@ def execute_behavior_tree(xml_string: str):
     """
     rospy.init_node("nl2bt_executor", anonymous=False)
     rospy.loginfo("=== NL2BT-Verify ROS 1 Executor starting ===")
+
+    # ── Startup diagnostics — print everything needed to catch common failures ─
+    rospy.loginfo("[StartupCheck] ── Checking costmap inflation radius ──")
+    _check_inflation_radius()
+    rospy.loginfo("[StartupCheck] ── Checking AMCL localisation ──")
+    _check_amcl_pose()
+    rospy.loginfo("[StartupCheck] ── Done ──")
 
     # ── Auto-set initial pose (only if robot is at start position) ───────────
     # Disabled: robot may not always be at 'start' when executor launches.
