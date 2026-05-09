@@ -1,0 +1,15 @@
+<launch>
+  <arg name="map_file" default="$(env HOME)/my_map4.yaml"/>
+
+  <!-- Start standard turtlebot navigation -->
+  <include file="$(find turtlebot_navigation)/launch/amcl_demo.launch">
+    <arg name="map_file" value="$(arg map_file)"/>
+  </include>
+
+  <!-- Override inflation_radius AFTER amcl_demo loads its YAML defaults.
+       Roslaunch loads ALL params in document order before starting any node,
+       so these <param> tags always win — move_base reads 0.05 at startup,
+       regardless of what any YAML file says. -->
+  <param name="/move_base/global_costmap/inflation_layer/inflation_radius" value="0.05"/>
+  <param name="/move_base/local_costmap/inflation_layer/inflation_radius" value="0.05"/>
+</launch>
